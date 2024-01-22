@@ -1,0 +1,65 @@
+Transform: AWS::Serverless-2016-10-31
+Description: Golang lambda functions for S3 Bucket operation
+
+Globals:
+  Function:
+    Timeout: 15
+    Runtime: go1.x
+    Architectures:
+      - x86_64
+
+Resources:
+  GoLambdaFunctions:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Dev
+  GetAllAudiosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "get_all_audios"
+      CodeUri: ./cmd/functions/get_all_audios/
+      Handler: handler.go
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref GoLambdaFunctions
+            Path: /audio
+            Method: GET
+
+  GetAudioByIDFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "get_audio_by_id"
+      CodeUri: ./cmd/functions/get_audio_by_id/
+      Handler: handler.go
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref GoLambdaFunctions
+            Path: /audio/{filename}
+            Method: GET
+
+  StoreAudioFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "store_audio"
+      CodeUri: ./cmd/functions/store_audio/
+      Handler: handler.go
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref GoLambdaFunctions
+            Path: /audio
+            Method: POST
