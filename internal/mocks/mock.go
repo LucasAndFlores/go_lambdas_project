@@ -9,8 +9,14 @@ import (
 
 type MockedPresignedClient struct {
 	PresignPutObjectFuncMock func(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
-}
+        PresignGetObjectFuncMock func(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
+    }
 
 func (m MockedPresignedClient) PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
 	return m.PresignPutObjectFuncMock(ctx, params, optFns...)
 }
+
+func (m MockedPresignedClient) PresignGetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+	return m.PresignGetObjectFuncMock(ctx, params, optFns...)
+}
+

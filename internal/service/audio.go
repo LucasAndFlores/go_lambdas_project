@@ -25,6 +25,7 @@ const (
 )
 
 type S3URLPresigner interface {
+        PresignGetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 	PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 }
 
@@ -34,6 +35,7 @@ type AudioService struct {
 
 type IAudioService interface {
 	GeneratePreSignedPutURL(string, context.Context) (int, responseBody)
+        GeneratePreSignedGetURL(string, context.Context) (int, responseBody)
 }
 
 func NewAudioService(s S3URLPresigner) IAudioService {
@@ -71,3 +73,21 @@ func (s *AudioService) GeneratePreSignedPutURL(body string, ctx context.Context)
 
 	return http.StatusCreated, responseBody{"url": request.URL}
 }
+
+func (s *AudioService) GeneratePreSignedGetURL(param string, ctx context.Context) (int, responseBody) {
+
+	if param == "" {
+		return http.StatusBadRequest, responseBody{"message": constant.MISSING_PARAM_ERROR}
+	}
+
+	request, err := s.s3PresignedAPI.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(BUCKET_NAME), Key: aws.String(param)})
+
+	if err != nil {
+		log.Println("An error happened when tried to pre sign a GET URL", err)
+		return http.StatusInternalServerError, responseBody{"message": constant.INTERNAL_SERVER_ERROR}
+	}
+
+	return http.StatusOK, responseBody{"url": request.URL}
+
+}
+
