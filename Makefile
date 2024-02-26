@@ -7,7 +7,7 @@ GOARCH=amd64
 CGO_ENABLED=0
 
 run:
-	AWS_PROFILE=${MY_AWS_PROFILE} sam local start-api --env-vars env.json
+	AWS_PROFILE=${MY_AWS_PROFILE} sam local start-api 
 
 dev:
 	make build && make run
@@ -22,7 +22,7 @@ build:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 sam build
 
 unit-test-internal: 
-	go test ./internal/... -coverprofile=cover.out
+	go test ./internal/... -v -coverprofile=cover.out
 
 coverage-report:
 	go tool cover -html=cover.out
