@@ -8,6 +8,7 @@ import (
 	"github.com/LucasAndFlores/go_lambdas_project/internal/service"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type HttpRequest = events.APIGatewayProxyRequest
@@ -35,15 +36,17 @@ func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpR
 }
 
 func main() {
-	preSigned, err := config.LoadPreSignedClient(context.Background())
+	cfg, err := config.LoadDefaultConfig(context.Background())
 
 	if err != nil {
 		log.Fatalf("An error occurred when tried to load AWS config. Error: %v", err)
 	}
+
+	bucket := s3.NewFromConfig(cfg)
+	preSigned := s3.NewPresignClient(bucket)
 
 	s := service.NewAudioService(preSigned)
 	h := handler{service: s}
 
 	lambda.Start(h.handleRequest)
 }
-
