@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/LucasAndFlores/go_lambdas_project/constant"
-	"github.com/LucasAndFlores/go_lambdas_project/internal/entity"
+	"github.com/LucasAndFlores/go_lambdas_project/internal/dto"
 	"github.com/LucasAndFlores/go_lambdas_project/internal/mocks"
 	"github.com/aws/aws-lambda-go/events"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -75,13 +75,13 @@ func TestGeneratePreSignedPutURLBodyValidation(t *testing.T) {
 
 	type testCase struct {
 		payload  events.APIGatewayProxyRequest
-		expected entity.AudioInputError
+		expected dto.AudioInputError
 	}
 
 	tCases := []testCase{
 		{
 			payload: events.APIGatewayProxyRequest{Body: "{\"author\":\"test\",\"label\":\"test\",\"type\":\"test\",\"words\":\"test\"}"},
-			expected: entity.AudioInputError{
+			expected: dto.AudioInputError{
 				Field: "FileName",
 				Tag:   "required",
 				Value: "",
@@ -89,7 +89,7 @@ func TestGeneratePreSignedPutURLBodyValidation(t *testing.T) {
 		},
 		{
 			payload: events.APIGatewayProxyRequest{Body: "{\"fileName\":\"test\",\"label\":\"test\",\"type\":\"test\",\"words\":\"test\"}"},
-			expected: entity.AudioInputError{
+			expected: dto.AudioInputError{
 				Field: "Author",
 				Tag:   "required",
 				Value: "",
@@ -97,7 +97,7 @@ func TestGeneratePreSignedPutURLBodyValidation(t *testing.T) {
 		},
 		{
 			payload: events.APIGatewayProxyRequest{Body: "{\"fileName\":\"test\",\"author\":\"test\",\"type\":\"test\",\"words\":\"test\"}"},
-			expected: entity.AudioInputError{
+			expected: dto.AudioInputError{
 				Field: "Label",
 				Tag:   "required",
 				Value: "",
@@ -105,7 +105,7 @@ func TestGeneratePreSignedPutURLBodyValidation(t *testing.T) {
 		},
 		{
 			payload: events.APIGatewayProxyRequest{Body: "{\"fileName\":\"test\",\"author\":\"test\",\"label\":\"test\",\"words\":\"test\"}"},
-			expected: entity.AudioInputError{
+			expected: dto.AudioInputError{
 				Field: "Type",
 				Tag:   "required",
 				Value: "",
@@ -113,7 +113,7 @@ func TestGeneratePreSignedPutURLBodyValidation(t *testing.T) {
 		},
 		{
 			payload: events.APIGatewayProxyRequest{Body: "{\"fileName\":\"test\",\"author\":\"test\",\"label\":\"test\",\"type\":\"test\"}"},
-			expected: entity.AudioInputError{
+			expected: dto.AudioInputError{
 				Field: "Words",
 				Tag:   "required",
 				Value: "",
@@ -132,7 +132,7 @@ func TestGeneratePreSignedPutURLBodyValidation(t *testing.T) {
 
 		rawResponse = body["errors"]
 
-		if parsed, ok := rawResponse.([]entity.AudioInputError); ok {
+		if parsed, ok := rawResponse.([]dto.AudioInputError); ok {
 			if parsed[0] != value.expected {
 				t.Errorf("The result is different from expected. Result: %v. Expected: %v", parsed[0], value.expected)
 			}
@@ -234,4 +234,3 @@ func TestGeneratePreSignedGetURLErrorResponse(t *testing.T) {
 	}
 
 }
-

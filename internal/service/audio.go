@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/LucasAndFlores/go_lambdas_project/constant"
-	"github.com/LucasAndFlores/go_lambdas_project/internal/entity"
+	"github.com/LucasAndFlores/go_lambdas_project/internal/dto"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -25,7 +25,7 @@ const (
 )
 
 type S3URLPresigner interface {
-        PresignGetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
+	PresignGetObject(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 	PresignPutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.PresignOptions)) (*v4.PresignedHTTPRequest, error)
 }
 
@@ -35,7 +35,7 @@ type AudioService struct {
 
 type IAudioService interface {
 	GeneratePreSignedPutURL(string, context.Context) (int, responseBody)
-        GeneratePreSignedGetURL(string, context.Context) (int, responseBody)
+	GeneratePreSignedGetURL(string, context.Context) (int, responseBody)
 }
 
 func NewAudioService(s S3URLPresigner) IAudioService {
@@ -47,7 +47,7 @@ func NewAudioService(s S3URLPresigner) IAudioService {
 type responseBody = map[string]interface{}
 
 func (s *AudioService) GeneratePreSignedPutURL(body string, ctx context.Context) (int, responseBody) {
-	var parsedBody entity.AudioDTOInput
+	var parsedBody dto.AudioDTOInput
 
 	err := json.Unmarshal([]byte(body), &parsedBody)
 
@@ -90,4 +90,3 @@ func (s *AudioService) GeneratePreSignedGetURL(param string, ctx context.Context
 	return http.StatusOK, responseBody{"url": request.URL}
 
 }
-
