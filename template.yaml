@@ -8,11 +8,41 @@ Globals:
     Architectures:
       - x86_64
 
+Parameters:
+  BucketName:
+    Type: String
+    Default: ''
+
+  DynamoTableName:
+    Type: String
+    Default: ''
+
 Resources:
+  S3BucketToRespond:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Ref BucketName
+
+  MetadataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoTableName
+
+      AttributeDefinitions:
+        - AttributeName: filename
+          AttributeType: S
+      KeySchema:
+        - AttributeName: filename
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
   GoLambdaFunctions:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Dev
+
   GetAllAudiosFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -36,6 +66,9 @@ Resources:
       FunctionName: "get_audio_by_id"
       CodeUri: ./cmd/functions/get_audio_by_id/
       Handler: handler.go
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref BucketName
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
@@ -53,6 +86,9 @@ Resources:
       FunctionName: "store_audio"
       CodeUri: ./cmd/functions/store_audio/
       Handler: handler.go
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref BucketName
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
@@ -63,3 +99,29 @@ Resources:
             RestApiId: !Ref GoLambdaFunctions
             Path: /audio
             Method: POST
+
+  ReactToFileUpload:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "react_to_file_upload"
+      CodeUri: ./cmd/functions/react_to_file_upload/
+      Handler: handler.go
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref BucketName
+        - DynamoDBWritePolicy:
+            TableName: !Ref DynamoTableName
+            Actions:
+              - PutItem
+            Conditions:
+              ForAll:
+                ArnLike: [ "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${{DYNAMO_TABLE}}/*" ]
+      Environment:
+        Variables:
+          DYNAMO_TABLE: !Ref DynamoTableName
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !Ref S3BucketToRespond
+            Events: s3:ObjectCreated:*
