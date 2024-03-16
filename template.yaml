@@ -100,28 +100,23 @@ Resources:
             Path: /audio
             Method: POST
 
-  ReactToFileUpload:
+  StoreMetadataFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: "react_to_file_upload"
-      CodeUri: ./cmd/functions/react_to_file_upload/
+      FunctionName: "store_metadata"
+      CodeUri: ./cmd/functions/store_metadata/
       Handler: handler.go
       Policies:
         - S3FullAccessPolicy:
             BucketName: !Ref BucketName
-        - DynamoDBWritePolicy:
-            TableName: !Ref DynamoTableName
-            Actions:
-              - PutItem
-            Conditions:
-              ForAll:
-                ArnLike: [ "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${{DYNAMO_TABLE}}/*" ]
       Environment:
         Variables:
+          BUCKET_NAME: !Ref BucketName
           DYNAMO_TABLE: !Ref DynamoTableName
       Events:
-        S3Event:
-          Type: S3
+        CatchAll:
+          Type: Api
           Properties:
-            Bucket: !Ref S3BucketToRespond
-            Events: s3:ObjectCreated:*
+            RestApiId: !Ref GoLambdaFunctions
+            Path: /metadata
+            Method: POST

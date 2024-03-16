@@ -2,24 +2,28 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
+	"github.com/LucasAndFlores/go_lambdas_project/internal/dto"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 var DYNAMO_TABLE = os.Getenv("DYNAMO_TABLE")
+
+var fileNotFoundErr = errors.New("Filename not found. Unable to complete the operation")
+var confilctErr = errors.New("The object already exists")
 
 type S3Bucket interface {
 	HeadObject(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
 }
 
 type DynamoDB interface {
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 }
 
@@ -29,7 +33,7 @@ type MetadataService struct {
 }
 
 type IMetadataService interface {
-	ReactToStoredObject(context.Context, events.S3Event) error
+	CreateItem(context.Context, dto.MetadataDTOInput) error
 }
 
 func NewMetadataService(s S3Bucket, d DynamoDB) IMetadataService {
@@ -39,59 +43,54 @@ func NewMetadataService(s S3Bucket, d DynamoDB) IMetadataService {
 	}
 }
 
-func (s *MetadataService) ReactToStoredObject(ctx context.Context, events events.S3Event) error {
-	for _, record := range events.Records {
-		bucket := record.S3.Bucket.Name
-		key := record.S3.Object.URLDecodedKey
-		headOutput, err := s.s3.HeadObject(ctx, &s3.HeadObjectInput{
-			Bucket: &bucket,
-			Key:    &key,
-		})
+func (s *MetadataService) CreateItem(ctx context.Context, metadata dto.MetadataDTOInput) error {
+	_, err := s.s3.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(BUCKET_NAME),
+		Key:    aws.String(metadata.FileName),
+	})
 
-		if err != nil {
-			log.Printf("Error getting head of object %s/%s: %s", bucket, key, err)
-			return err
-		}
+	if err != nil {
+		log.Printf("Error getting head of object %s/%s: %s", BUCKET_NAME, metadata.FileName, err.Error())
+		return fileNotFoundErr
+	}
 
-		err = checkMetadataFields(headOutput.Metadata)
+	output, err := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: aws.String(DYNAMO_TABLE),
+		Key: map[string]types.AttributeValue{
+			"filename": &types.AttributeValueMemberS{Value: metadata.FileName},
+		},
+	})
 
-		if err != nil {
-			log.Printf("Error when checking the metadata fields: %v", err)
-			return err
-		}
+	if err != nil {
+		log.Printf("Error when tried to getItem from dynamoDB: %s", err)
+		return err
+	}
 
-		m, err := attributevalue.MarshalMap(headOutput.Metadata)
+	if output.Item != nil {
+		return confilctErr
 
-		if err != nil {
-			log.Printf("Error when tried to marshall: %s", err)
-			return err
-		}
+	}
 
-		_, err = s.dynamo.PutItem(ctx, &dynamodb.PutItemInput{
-			TableName: aws.String(DYNAMO_TABLE), Item: m,
-		})
+	item := map[string]types.AttributeValue{
+		"filename": &types.AttributeValueMemberS{Value: metadata.FileName},
+		"author":   &types.AttributeValueMemberS{Value: metadata.Author},
+		"label":    &types.AttributeValueMemberS{Value: metadata.Label},
+		"type":     &types.AttributeValueMemberS{Value: metadata.Type},
+		"words":    &types.AttributeValueMemberS{Value: metadata.Words},
+	}
 
-		if err != nil {
-			log.Printf("Error when trying to use putItem method: %s", err)
-			return err
-		}
+	putItemInput := &dynamodb.PutItemInput{
+		TableName: aws.String(DYNAMO_TABLE),
+		Item:      item,
+	}
 
-		log.Println("The object metadata was successfully stored in dynamodb")
+	_, err = s.dynamo.PutItem(ctx, putItemInput)
+
+	if err != nil {
+		log.Printf("Error when trying to use putItem method: %s", err)
+		return err
 	}
 
 	return nil
-}
 
-func checkMetadataFields(inputMap map[string]string) error {
-	requiredFields := []string{"author", "filename", "label", "words"}
-
-	for _, field := range requiredFields {
-		_, ok := inputMap[field]
-
-		if !ok {
-			return fmt.Errorf("One of the metadata fields is missing: %s", field)
-		}
-	}
-
-	return nil
 }

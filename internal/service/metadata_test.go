@@ -4,25 +4,24 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/LucasAndFlores/go_lambdas_project/internal/dto"
 	"github.com/LucasAndFlores/go_lambdas_project/internal/mocks"
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func TestReactToStoredObjectSuccessfulResponse(t *testing.T) {
+func TestCreateItemSuccessfulResponse(t *testing.T) {
 	mockedS3 := mocks.MockedS3{}
 
 	mockedS3.HeadObjectFuncMock = func(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+		time := time.Now()
+
 		return &s3.HeadObjectOutput{
-			Metadata: map[string]string{
-				"author":   "test",
-				"filename": "test",
-				"label":    "123",
-				"words":    "test",
-			}}, nil
+			LastModified: &time,
+		}, nil
 	}
 
 	mockedDynamodb := mocks.MockedDynamoDB{}
@@ -33,22 +32,23 @@ func TestReactToStoredObjectSuccessfulResponse(t *testing.T) {
 		}, nil
 	}
 
-	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
-
-	s3Event := events.S3Event{
-		Records: []events.S3EventRecord{
-			{
-				EventSource: "aws:s3",
-				EventName:   "ObjectCreated:Put",
-				S3: events.S3Entity{
-					Bucket: events.S3Bucket{Name: "test"},
-					Object: events.S3Object{Key: "test"},
-				},
-			},
-		},
+	mockedDynamodb.GetItemFuncMock = func(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+		return &dynamodb.GetItemOutput{
+			Item: nil,
+		}, nil
 	}
 
-	err := serviceHandler.ReactToStoredObject(context.TODO(), s3Event)
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
+
+	metadata := dto.MetadataDTOInput{
+		FileName: "test",
+		Author:   "test",
+		Label:    "123",
+		Words:    "test",
+		Type:     "test",
+	}
+
+	err := serviceHandler.CreateItem(context.TODO(), metadata)
 
 	if err != nil {
 		t.Errorf("The result is different from expected. Expected nil. Result: %v", err)
@@ -56,13 +56,11 @@ func TestReactToStoredObjectSuccessfulResponse(t *testing.T) {
 
 }
 
-func TestReactToStoredObjectS3Error(t *testing.T) {
-	s3Error := errors.New("S3 Bucket error")
-
+func TestCreateItemS3HeadObjectError(t *testing.T) {
 	mockedS3 := mocks.MockedS3{}
 
 	mockedS3.HeadObjectFuncMock = func(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
-		return nil, s3Error
+		return nil, errors.New("AWS Error")
 	}
 
 	mockedDynamodb := mocks.MockedDynamoDB{}
@@ -73,85 +71,41 @@ func TestReactToStoredObjectS3Error(t *testing.T) {
 		}, nil
 	}
 
-	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
-
-	s3Event := events.S3Event{
-		Records: []events.S3EventRecord{
-			{
-				EventSource: "aws:s3",
-				EventName:   "ObjectCreated:Put",
-				S3: events.S3Entity{
-					Bucket: events.S3Bucket{Name: "test"},
-					Object: events.S3Object{Key: "test"},
-				},
-			},
-		},
-	}
-
-	err := serviceHandler.ReactToStoredObject(context.TODO(), s3Event)
-
-	if err != s3Error {
-		t.Errorf("The result is different from expected. Expected: %v. Result: %v", s3Error, err)
-	}
-
-}
-
-func TestReactToStoredObjectDynamoError(t *testing.T) {
-	dynamoError := errors.New("DynamoDB error")
-
-	mockedS3 := mocks.MockedS3{}
-
-	mockedS3.HeadObjectFuncMock = func(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
-		return &s3.HeadObjectOutput{
-			Metadata: map[string]string{
-				"author":   "test",
-				"filename": "test",
-				"label":    "123",
-				"words":    "test",
-			}}, nil
-	}
-
-	mockedDynamodb := mocks.MockedDynamoDB{}
-
-	mockedDynamodb.PutItemFuncMock = func(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
-		return nil, dynamoError
+	mockedDynamodb.GetItemFuncMock = func(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+		return &dynamodb.GetItemOutput{
+			Item: nil,
+		}, nil
 	}
 
 	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
 
-	s3Event := events.S3Event{
-		Records: []events.S3EventRecord{
-			{
-				EventSource: "aws:s3",
-				EventName:   "ObjectCreated:Put",
-				S3: events.S3Entity{
-					Bucket: events.S3Bucket{Name: "test"},
-					Object: events.S3Object{Key: "test"},
-				},
-			},
-		},
+	metadata := dto.MetadataDTOInput{
+		FileName: "test",
+		Author:   "test",
+		Label:    "123",
+		Words:    "test",
+		Type:     "test",
 	}
 
-	err := serviceHandler.ReactToStoredObject(context.TODO(), s3Event)
+	err := serviceHandler.CreateItem(context.TODO(), metadata)
 
-	if err != dynamoError {
-		t.Errorf("The result is different from expected. Expected: %v. Result: %v", dynamoError, err)
+	expected := errors.New("Filename not found. Unable to complete the operation")
+
+	if err.Error() != expected.Error() {
+		t.Errorf("Result is different from expected. Expected: %v. Result: %v", expected, err)
 	}
 
 }
 
-func TestReactToStoredObjectMetadataError(t *testing.T) {
-	metadataError := errors.New("One of the metadata fields is missing: words")
-
+func TestCreateItemDynamoDBGetItemError(t *testing.T) {
 	mockedS3 := mocks.MockedS3{}
 
 	mockedS3.HeadObjectFuncMock = func(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+		time := time.Now()
+
 		return &s3.HeadObjectOutput{
-			Metadata: map[string]string{
-				"author":   "test",
-				"filename": "test",
-				"label":    "123",
-			}}, nil
+			LastModified: &time,
+		}, nil
 	}
 
 	mockedDynamodb := mocks.MockedDynamoDB{}
@@ -162,25 +116,120 @@ func TestReactToStoredObjectMetadataError(t *testing.T) {
 		}, nil
 	}
 
-	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
-
-	s3Event := events.S3Event{
-		Records: []events.S3EventRecord{
-			{
-				EventSource: "aws:s3",
-				EventName:   "ObjectCreated:Put",
-				S3: events.S3Entity{
-					Bucket: events.S3Bucket{Name: "test"},
-					Object: events.S3Object{Key: "test"},
-				},
-			},
-		},
+	mockedDynamodb.GetItemFuncMock = func(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+		return nil, errors.New("Dynamodb error")
 	}
 
-	err := serviceHandler.ReactToStoredObject(context.TODO(), s3Event)
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
 
-	if err.Error() != metadataError.Error() {
-		t.Errorf("The result is different from expected. Expected: %v. Result: %v", metadataError, err)
+	metadata := dto.MetadataDTOInput{
+		FileName: "test",
+		Author:   "test",
+		Label:    "123",
+		Words:    "test",
+		Type:     "test",
+	}
+
+	err := serviceHandler.CreateItem(context.TODO(), metadata)
+
+	expected := errors.New("Dynamodb error")
+
+	if err.Error() != expected.Error() {
+		t.Errorf("Result is different from expected. Expected: %v. Result: %v", expected, err)
+	}
+
+}
+
+func TestCreateItemConflictError(t *testing.T) {
+	mockedS3 := mocks.MockedS3{}
+
+	mockedS3.HeadObjectFuncMock = func(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+		time := time.Now()
+
+		return &s3.HeadObjectOutput{
+			LastModified: &time,
+		}, nil
+	}
+
+	mockedDynamodb := mocks.MockedDynamoDB{}
+
+	mockedDynamodb.PutItemFuncMock = func(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
+		return &dynamodb.PutItemOutput{
+			Attributes: map[string]types.AttributeValue{},
+		}, nil
+	}
+
+	mockedDynamodb.GetItemFuncMock = func(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+		return &dynamodb.GetItemOutput{
+			Item: map[string]types.AttributeValue{
+				"filename": &types.AttributeValueMemberS{Value: "test"},
+				"author":   &types.AttributeValueMemberS{Value: "test"},
+				"label":    &types.AttributeValueMemberS{Value: "123"},
+				"words":    &types.AttributeValueMemberS{Value: "test"},
+				"type":     &types.AttributeValueMemberS{Value: "test"},
+			},
+		}, nil
+	}
+
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
+
+	metadata := dto.MetadataDTOInput{
+		FileName: "test",
+		Author:   "test",
+		Label:    "123",
+		Words:    "test",
+		Type:     "test",
+	}
+
+	err := serviceHandler.CreateItem(context.TODO(), metadata)
+
+	expected := errors.New("The object already exists")
+
+	if err.Error() != expected.Error() {
+		t.Errorf("Result is different from expected. Expected: %v. Result: %v", expected, err)
+	}
+
+}
+
+func TestCreateDynamoDBPutItemError(t *testing.T) {
+	mockedS3 := mocks.MockedS3{}
+
+	mockedS3.HeadObjectFuncMock = func(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+		time := time.Now()
+
+		return &s3.HeadObjectOutput{
+			LastModified: &time,
+		}, nil
+	}
+
+	mockedDynamodb := mocks.MockedDynamoDB{}
+
+	mockedDynamodb.PutItemFuncMock = func(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
+		return nil, errors.New("Dynamodb error")
+	}
+
+	mockedDynamodb.GetItemFuncMock = func(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+		return &dynamodb.GetItemOutput{
+			Item: nil,
+		}, nil
+	}
+
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
+
+	metadata := dto.MetadataDTOInput{
+		FileName: "test",
+		Author:   "test",
+		Label:    "123",
+		Words:    "test",
+		Type:     "test",
+	}
+
+	err := serviceHandler.CreateItem(context.TODO(), metadata)
+
+	expected := errors.New("Dynamodb error")
+
+	if err.Error() != expected.Error() {
+		t.Errorf("Result is different from expected. Expected: %v. Result: %v", expected, err)
 	}
 
 }
