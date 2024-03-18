@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
@@ -36,7 +37,7 @@ func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpR
 
 	if err != nil {
 		return HttpResponse{
-			StatusCode: http.StatusBadRequest,
+			StatusCode: http.StatusInternalServerError,
 			Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
 		}, nil
 	}
@@ -53,10 +54,25 @@ func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpR
 	err = h.service.CreateItem(ctx, parsedBody)
 
 	if err != nil {
-		return HttpResponse{
-			StatusCode: http.StatusBadRequest,
-			Body:       HttpBodyResponse{"message": err.Error()},
-		}, nil
+		switch {
+		case errors.Is(err, service.ConfilctErr):
+			return HttpResponse{
+				StatusCode: http.StatusConflict,
+				Body:       HttpBodyResponse{"message": err.Error()},
+			}, nil
+
+		case errors.Is(err, service.FileNotFoundErr):
+			return HttpResponse{
+				StatusCode: http.StatusUnprocessableEntity,
+				Body:       HttpBodyResponse{"message": err.Error()},
+			}, nil
+
+		default:
+			return HttpResponse{
+				StatusCode: http.StatusInternalServerError,
+				Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
+			}, nil
+		}
 	}
 
 	return HttpResponse{
