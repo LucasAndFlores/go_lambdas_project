@@ -15,8 +15,8 @@ import (
 
 var DYNAMO_TABLE = os.Getenv("DYNAMO_TABLE")
 
-var fileNotFoundErr = errors.New("Filename not found. Unable to complete the operation")
-var confilctErr = errors.New("The object already exists")
+var FileNotFoundErr = errors.New("Filename not found. Unable to complete the operation")
+var ConfilctErr = errors.New("The object already exists")
 
 type S3Bucket interface {
 	HeadObject(ctx context.Context, params *s3.HeadObjectInput, optFns ...func(*s3.Options)) (*s3.HeadObjectOutput, error)
@@ -51,7 +51,7 @@ func (s *MetadataService) CreateItem(ctx context.Context, metadata dto.MetadataD
 
 	if err != nil {
 		log.Printf("Error getting head of object %s/%s: %s", BUCKET_NAME, metadata.FileName, err.Error())
-		return fileNotFoundErr
+		return FileNotFoundErr
 	}
 
 	output, err := s.dynamo.GetItem(ctx, &dynamodb.GetItemInput{
@@ -67,8 +67,7 @@ func (s *MetadataService) CreateItem(ctx context.Context, metadata dto.MetadataD
 	}
 
 	if output.Item != nil {
-		return confilctErr
-
+		return ConfilctErr
 	}
 
 	item := map[string]types.AttributeValue{
