@@ -3,10 +3,8 @@ package service
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/LucasAndFlores/go_lambdas_project/constant"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -33,7 +31,7 @@ type AudioService struct {
 
 type IAudioService interface {
 	GeneratePreSignedPutURL(filename string, ctx context.Context) (string, error)
-	GeneratePreSignedGetURL(string, context.Context) (int, responseBody)
+	GeneratePreSignedGetURL(filename string, ctx context.Context) (string, error)
 }
 
 func NewAudioService(s S3URLPresigner) IAudioService {
@@ -41,8 +39,6 @@ func NewAudioService(s S3URLPresigner) IAudioService {
 		s3PresignedAPI: s,
 	}
 }
-
-type responseBody = map[string]interface{}
 
 func (s *AudioService) GeneratePreSignedPutURL(filename string, ctx context.Context) (string, error) {
 	request, err := s.s3PresignedAPI.PresignPutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(BUCKET_NAME), Key: aws.String(filename)})
@@ -55,19 +51,13 @@ func (s *AudioService) GeneratePreSignedPutURL(filename string, ctx context.Cont
 	return request.URL, nil
 }
 
-func (s *AudioService) GeneratePreSignedGetURL(param string, ctx context.Context) (int, responseBody) {
-
-	if param == "" {
-		return http.StatusBadRequest, responseBody{"message": constant.MISSING_PARAM_ERROR}
-	}
-
-	request, err := s.s3PresignedAPI.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(BUCKET_NAME), Key: aws.String(param)})
+func (s *AudioService) GeneratePreSignedGetURL(filename string, ctx context.Context) (string, error) {
+	request, err := s.s3PresignedAPI.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(BUCKET_NAME), Key: aws.String(filename)})
 
 	if err != nil {
 		log.Println("An error happened when tried to pre sign a GET URL", err)
-		return http.StatusInternalServerError, responseBody{"message": constant.INTERNAL_SERVER_ERROR}
+		return "", err
 	}
 
-	return http.StatusOK, responseBody{"url": request.URL}
-
+	return request.URL, nil
 }

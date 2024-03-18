@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/LucasAndFlores/go_lambdas_project/config"
+	"github.com/LucasAndFlores/go_lambdas_project/constant"
 	"github.com/LucasAndFlores/go_lambdas_project/internal/service"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -27,11 +29,25 @@ type handler struct {
 func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpResponse, error) {
 	param := request.PathParameters["filename"]
 
-	statusCode, body := h.service.GeneratePreSignedGetURL(param, ctx)
+	if param == "" {
+		return HttpResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       HttpBodyResponse{"message": constant.MISSING_PARAM_ERROR},
+		}, nil
+	}
+
+	url, err := h.service.GeneratePreSignedGetURL(param, ctx)
+
+	if err != nil {
+		return HttpResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
+		}, nil
+	}
 
 	return HttpResponse{
-		StatusCode: statusCode,
-		Body:       body,
+		StatusCode: http.StatusOK,
+		Body:       HttpBodyResponse{"url": url},
 	}, nil
 }
 
