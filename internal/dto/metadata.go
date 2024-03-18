@@ -23,7 +23,7 @@ var MetadataValidator = validator.New()
 func (a *MetadataDTOInput) Validate() []MetadataInputError {
 	var errors []MetadataInputError
 
-	err := Validator.Struct(a)
+	err := MetadataValidator.Struct(a)
 
 	if err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
