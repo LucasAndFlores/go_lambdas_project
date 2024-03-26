@@ -43,21 +43,22 @@ Resources:
     Properties:
       StageName: Dev
 
-  GetAllAudiosFunction:
+  GetAllMetadataFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: "get_all_audios"
-      CodeUri: ./cmd/functions/get_all_audios/
+      FunctionName: "get_all_metadata"
+      CodeUri: ./cmd/functions/get_all_metadata/
       Handler: handler.go
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
+          DYNAMO_TABLE: !Ref DynamoTableName
       Events:
         CatchAll:
           Type: Api
           Properties:
             RestApiId: !Ref GoLambdaFunctions
-            Path: /audio
+            Path: /metadata
             Method: GET
 
   GetAudioByIDFunction:
