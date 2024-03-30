@@ -7,7 +7,9 @@ import (
 	"os"
 
 	"github.com/LucasAndFlores/go_lambdas_project/internal/dto"
+	"github.com/LucasAndFlores/go_lambdas_project/internal/entity"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -25,6 +27,7 @@ type S3Bucket interface {
 type DynamoDB interface {
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	Scan(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error)
 }
 
 type MetadataService struct {
@@ -34,6 +37,7 @@ type MetadataService struct {
 
 type IMetadataService interface {
 	CreateItem(context.Context, dto.MetadataDTOInput) error
+	ListAllItems(context.Context) ([]dto.MetadataDTOInput, error)
 }
 
 func NewMetadataService(s S3Bucket, d DynamoDB) IMetadataService {
@@ -92,4 +96,36 @@ func (s *MetadataService) CreateItem(ctx context.Context, metadata dto.MetadataD
 
 	return nil
 
+}
+
+func (s *MetadataService) ListAllItems(ctx context.Context) ([]dto.MetadataDTOInput, error) {
+	output, err := s.dynamo.Scan(context.Background(), &dynamodb.ScanInput{TableName: aws.String(DYNAMO_TABLE)})
+
+	if err != nil {
+		log.Printf("An error occurred when tried to scan all items. Error: %v", err)
+		return []dto.MetadataDTOInput{}, err
+	}
+
+	var listOfAllItems []entity.Metadata
+
+	err = attributevalue.UnmarshalListOfMaps(output.Items, &listOfAllItems)
+
+	if err != nil {
+		log.Printf("An error occurred when tried use attributevalue. Error: %v", err)
+		return []dto.MetadataDTOInput{}, err
+	}
+
+	if len(listOfAllItems) == 0 {
+		return []dto.MetadataDTOInput{}, nil
+	}
+
+	var metadataOutput []dto.MetadataDTOInput
+
+	for _, val := range listOfAllItems {
+		converted := val.ConvertToDTO()
+
+		metadataOutput = append(metadataOutput, converted)
+	}
+
+	return metadataOutput, nil
 }

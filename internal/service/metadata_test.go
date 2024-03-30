@@ -233,3 +233,90 @@ func TestCreateDynamoDBPutItemError(t *testing.T) {
 	}
 
 }
+
+func TestListAllItemsSuccessfulResponse(t *testing.T) {
+	mockedS3 := mocks.MockedS3{}
+	mockedDynamodb := mocks.MockedDynamoDB{}
+
+	mockedDynamodb.ScanFuncMock = func(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error) {
+		return &dynamodb.ScanOutput{
+			Items: []map[string]types.AttributeValue{
+				{
+					"filename": &types.AttributeValueMemberS{Value: "test"},
+					"author":   &types.AttributeValueMemberS{Value: "test"},
+					"label":    &types.AttributeValueMemberS{Value: "123"},
+					"words":    &types.AttributeValueMemberS{Value: "test"},
+					"type":     &types.AttributeValueMemberS{Value: "test"},
+				},
+			},
+		}, nil
+	}
+
+	expected := []dto.MetadataDTOInput{
+		{
+			FileName: "test",
+			Author:   "test",
+			Label:    "123",
+			Words:    "test",
+			Type:     "test",
+		},
+	}
+
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
+
+	metadata, err := serviceHandler.ListAllItems(context.TODO())
+
+	if err != nil {
+		t.Errorf("Expected nil but received an error. Error: %v", err)
+	}
+
+	if metadata[0] != expected[0] {
+		t.Errorf("The result is different from expected.Result: %v. Expected: %v", metadata[0], expected[0])
+	}
+}
+
+func TestListAllItemsDynamoDBError(t *testing.T) {
+	mockedS3 := mocks.MockedS3{}
+	mockedDynamodb := mocks.MockedDynamoDB{}
+
+	mockedDynamodb.ScanFuncMock = func(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error) {
+		return nil, errors.New("Dynamodb error")
+	}
+
+	expected := errors.New("Dynamodb error")
+
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
+
+	metadata, err := serviceHandler.ListAllItems(context.TODO())
+
+	if len(metadata) != 0 {
+		t.Errorf("Expected an empty array but received an item. Item: %v", metadata)
+	}
+
+	if err.Error() != expected.Error() {
+		t.Errorf("The result is different from expected.Result: %v. Expected: %v", err, expected)
+	}
+}
+
+func TestListAllItemsEmptyDynamoResponse(t *testing.T) {
+	mockedS3 := mocks.MockedS3{}
+	mockedDynamodb := mocks.MockedDynamoDB{}
+
+	mockedDynamodb.ScanFuncMock = func(ctx context.Context, params *dynamodb.ScanInput, optFns ...func(*dynamodb.Options)) (*dynamodb.ScanOutput, error) {
+		return &dynamodb.ScanOutput{
+			Items: []map[string]types.AttributeValue{},
+		}, nil
+	}
+
+	serviceHandler := NewMetadataService(mockedS3, mockedDynamodb)
+
+	metadata, err := serviceHandler.ListAllItems(context.TODO())
+
+	if err != nil {
+		t.Errorf("Expected nil but received an error. Error: %v", err)
+	}
+
+	if len(metadata) != 0 {
+		t.Errorf("Expected an empty array but received an item. Item: %v", metadata)
+	}
+}
