@@ -12,6 +12,14 @@ type MetadataDTOInput struct {
 	Words    string `json:"words" validate:"required"`
 }
 
+type MetadataDTOOutput struct {
+	FileName string `json:"filename" validate:"required"`
+	Author   string `json:"author" validate:"required"`
+	Label    string `json:"label" validate:"required"`
+	Type     string `json:"type" validate:"required"`
+	Words    string `json:"words" validate:"required"`
+}
+
 type MetadataInputError struct {
 	Field string `json:"field"`
 	Tag   string `json:"tag"`

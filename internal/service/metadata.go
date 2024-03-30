@@ -37,7 +37,7 @@ type MetadataService struct {
 
 type IMetadataService interface {
 	CreateItem(context.Context, dto.MetadataDTOInput) error
-	ListAllItems(context.Context) ([]dto.MetadataDTOInput, error)
+	ListAllItems(context.Context) ([]dto.MetadataDTOOutput, error)
 }
 
 func NewMetadataService(s S3Bucket, d DynamoDB) IMetadataService {
@@ -98,12 +98,12 @@ func (s *MetadataService) CreateItem(ctx context.Context, metadata dto.MetadataD
 
 }
 
-func (s *MetadataService) ListAllItems(ctx context.Context) ([]dto.MetadataDTOInput, error) {
+func (s *MetadataService) ListAllItems(ctx context.Context) ([]dto.MetadataDTOOutput, error) {
 	output, err := s.dynamo.Scan(context.Background(), &dynamodb.ScanInput{TableName: aws.String(DYNAMO_TABLE)})
 
 	if err != nil {
 		log.Printf("An error occurred when tried to scan all items. Error: %v", err)
-		return []dto.MetadataDTOInput{}, err
+		return []dto.MetadataDTOOutput{}, err
 	}
 
 	var listOfAllItems []entity.Metadata
@@ -112,14 +112,14 @@ func (s *MetadataService) ListAllItems(ctx context.Context) ([]dto.MetadataDTOIn
 
 	if err != nil {
 		log.Printf("An error occurred when tried use attributevalue. Error: %v", err)
-		return []dto.MetadataDTOInput{}, err
+		return []dto.MetadataDTOOutput{}, err
 	}
 
 	if len(listOfAllItems) == 0 {
-		return []dto.MetadataDTOInput{}, nil
+		return []dto.MetadataDTOOutput{}, nil
 	}
 
-	var metadataOutput []dto.MetadataDTOInput
+	var metadataOutput []dto.MetadataDTOOutput
 
 	for _, val := range listOfAllItems {
 		converted := val.ConvertToDTO()

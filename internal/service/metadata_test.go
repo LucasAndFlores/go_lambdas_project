@@ -252,7 +252,7 @@ func TestListAllItemsSuccessfulResponse(t *testing.T) {
 		}, nil
 	}
 
-	expected := []dto.MetadataDTOInput{
+	expected := []dto.MetadataDTOOutput{
 		{
 			FileName: "test",
 			Author:   "test",

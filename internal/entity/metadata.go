@@ -10,8 +10,8 @@ type Metadata struct {
 	Words    string `dynamodbav:"words"`
 }
 
-func (m *Metadata) ConvertToDTO() dto.MetadataDTOInput {
-	return dto.MetadataDTOInput{
+func (m *Metadata) ConvertToDTO() dto.MetadataDTOOutput {
+	return dto.MetadataDTOOutput{
 		FileName: m.FileName,
 		Author:   m.Author,
 		Label:    m.Label,
