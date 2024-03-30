@@ -1,22 +1,57 @@
 package main
 
 import (
-	"github.com/aws/aws-lambda-go/events"
+	"context"
+	"log"
+	"net/http"
+
+	"github.com/LucasAndFlores/go_lambdas_project/config"
+	"github.com/LucasAndFlores/go_lambdas_project/internal/service"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type Response struct {
-	StatusCode int         `json:"statusCode"`
-	Body       interface{} `json:"body"`
+type handler struct {
+	service service.IMetadataService
 }
 
-func handler(request events.APIGatewayProxyRequest) (Response, error) {
+type HttpBodyResponse = map[string]interface{}
+
+type Response struct {
+	StatusCode int              `json:"statusCode"`
+	Body       HttpBodyResponse `json:"body"`
+}
+
+func (h *handler) handleRequest(ctx context.Context) (Response, error) {
+	metadata, err := h.service.ListAllItems(ctx)
+
+	if err != nil {
+		return Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       HttpBodyResponse{"message": "error"},
+		}, nil
+	}
+
 	return Response{
-		StatusCode: 200,
-		Body:       "ok",
+		StatusCode: http.StatusOK,
+		Body:       HttpBodyResponse{"metadata": metadata},
 	}, nil
 }
 
 func main() {
-	lambda.Start(handler)
+	cfg, err := config.LoadDefaultConfig(context.Background())
+
+	if err != nil {
+		log.Fatalf("An error occurred when tried to load AWS config. Error: %v", err)
+	}
+
+	s3Client := s3.NewFromConfig(cfg)
+
+	dynamo := dynamodb.NewFromConfig(cfg)
+
+	s := service.NewMetadataService(s3Client, dynamo)
+	h := handler{service: s}
+
+	lambda.Start(h.handleRequest)
 }
