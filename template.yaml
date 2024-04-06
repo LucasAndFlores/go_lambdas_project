@@ -18,7 +18,7 @@ Parameters:
     Default: ''
 
 Resources:
-  S3BucketToRespond:
+  S3Bucket:
         Type: AWS::S3::Bucket
         Properties:
             BucketName: !Ref BucketName
