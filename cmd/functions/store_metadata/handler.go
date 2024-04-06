@@ -37,8 +37,8 @@ func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpR
 
 	if err != nil {
 		return HttpResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
+			StatusCode: http.StatusBadRequest,
+			Body:       HttpBodyResponse{"message": "Unable to process the body. Please, review the content"},
 		}, nil
 	}
 
