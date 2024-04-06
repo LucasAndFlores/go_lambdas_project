@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/LucasAndFlores/go_lambdas_project/config"
+	"github.com/LucasAndFlores/go_lambdas_project/constant"
 	"github.com/LucasAndFlores/go_lambdas_project/internal/service"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -29,7 +30,7 @@ func (h *handler) handleRequest(ctx context.Context) (Response, error) {
 	if err != nil {
 		return Response{
 			StatusCode: http.StatusInternalServerError,
-			Body:       HttpBodyResponse{"message": "error"},
+			Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
 		}, nil
 	}
 
