@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 
 	"github.com/LucasAndFlores/go_lambdas_project/config"
 	"github.com/LucasAndFlores/go_lambdas_project/constant"
+	"github.com/LucasAndFlores/go_lambdas_project/internal/dto"
 	"github.com/LucasAndFlores/go_lambdas_project/internal/service"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -17,11 +19,13 @@ type handler struct {
 	service service.IMetadataService
 }
 
-type HttpBodyResponse = map[string]interface{}
+type HttpBodyResponse struct {
+	Metadata []dto.MetadataDTOOutput `json:"metadata"`
+}
 
 type Response struct {
-	StatusCode int              `json:"statusCode"`
-	Body       HttpBodyResponse `json:"body"`
+	StatusCode int    `json:"statusCode"`
+	Body       string `json:"body"`
 }
 
 func (h *handler) handleRequest(ctx context.Context) (Response, error) {
@@ -30,13 +34,22 @@ func (h *handler) handleRequest(ctx context.Context) (Response, error) {
 	if err != nil {
 		return Response{
 			StatusCode: http.StatusInternalServerError,
-			Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
+			Body:       constant.INTERNAL_SERVER_ERROR,
+		}, nil
+	}
+
+	bytes, err := json.Marshal(HttpBodyResponse{Metadata: metadata})
+
+	if err != nil {
+		return Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       constant.INTERNAL_SERVER_ERROR,
 		}, nil
 	}
 
 	return Response{
 		StatusCode: http.StatusOK,
-		Body:       HttpBodyResponse{"metadata": metadata},
+		Body:       string(bytes),
 	}, nil
 }
 

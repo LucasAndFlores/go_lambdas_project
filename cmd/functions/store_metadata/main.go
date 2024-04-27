@@ -19,11 +19,9 @@ import (
 
 type HttpRequest = events.APIGatewayProxyRequest
 
-type HttpBodyResponse = map[string]interface{}
-
 type HttpResponse struct {
-	StatusCode int              `json:"statusCode"`
-	Body       HttpBodyResponse `json:"body"`
+	StatusCode int    `json:"statusCode"`
+	Body       string `json:"body"`
 }
 
 type handler struct {
@@ -38,16 +36,24 @@ func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpR
 	if err != nil {
 		return HttpResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       HttpBodyResponse{"message": "Unable to process the body. Please, review the content"},
+			Body:       "Unable to process the body. Please, review the content",
 		}, nil
 	}
 
 	validatonErr := parsedBody.Validate()
 
 	if validatonErr != nil {
+		bytes, err := json.Marshal(map[string]interface{}{"errors": validatonErr})
+
+		if err != nil {
+			return HttpResponse{
+				StatusCode: http.StatusBadRequest,
+				Body:       constant.INTERNAL_SERVER_ERROR,
+			}, nil
+		}
 		return HttpResponse{
 			StatusCode: http.StatusBadRequest,
-			Body:       HttpBodyResponse{"errors": validatonErr},
+			Body:       string(bytes),
 		}, nil
 	}
 
@@ -58,26 +64,26 @@ func (h *handler) handleRequest(ctx context.Context, request HttpRequest) (HttpR
 		case errors.Is(err, service.ConfilctErr):
 			return HttpResponse{
 				StatusCode: http.StatusConflict,
-				Body:       HttpBodyResponse{"message": err.Error()},
+				Body:       err.Error(),
 			}, nil
 
 		case errors.Is(err, service.FileNotFoundErr):
 			return HttpResponse{
 				StatusCode: http.StatusUnprocessableEntity,
-				Body:       HttpBodyResponse{"message": err.Error()},
+				Body:       err.Error(),
 			}, nil
 
 		default:
 			return HttpResponse{
 				StatusCode: http.StatusInternalServerError,
-				Body:       HttpBodyResponse{"message": constant.INTERNAL_SERVER_ERROR},
+				Body:       constant.INTERNAL_SERVER_ERROR,
 			}, nil
 		}
 	}
 
 	return HttpResponse{
 		StatusCode: http.StatusCreated,
-		Body:       HttpBodyResponse{"message": "successfully stored"},
+		Body:       "successfully stored",
 	}, nil
 }
 
