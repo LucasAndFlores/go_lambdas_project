@@ -51,6 +51,9 @@ Resources:
       Runtime: provided.al2
       Architectures:
         - x86_64
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DynamoTableName
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
@@ -75,7 +78,7 @@ Resources:
       Architectures:
         - x86_64
       Policies:
-        - S3FullAccessPolicy:
+        - S3ReadPolicy:
             BucketName: !Ref BucketName
       Environment:
         Variables:
@@ -100,7 +103,7 @@ Resources:
       Architectures:
         - x86_64
       Policies:
-        - S3FullAccessPolicy:
+        - S3WritePolicy:
             BucketName: !Ref BucketName
       Environment:
         Variables:
@@ -125,8 +128,12 @@ Resources:
       Architectures:
         - x86_64
       Policies:
-        - S3FullAccessPolicy:
+        - S3ReadPolicy:
             BucketName: !Ref BucketName
+        - DynamoDBWritePolicy:
+            TableName: !Ref DynamoTableName
+        - DynamoDBReadPolicy:
+            TableName: !Ref DynamoTableName
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
